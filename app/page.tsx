@@ -1,477 +1,607 @@
-"use client";
-import { useMemo, useState } from "react";
+'use client';
 
-import {
-  Activity,
-  ArrowRight,
-  Building2,
-  CheckCircle2,
-  Clock,
-  Heart,
-  Menu,
-  Search,
-  Shield,
-  TrendingUp,
-} from "lucide-react";
+import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
 
+// ── Types ──────────────────────────────────────────────────────────────────
 
-
-type Category = "Equipment" | "Construction" | "Training" | "Response";
-type Filter = "All" | "Urgent" | "Equipment" | "Construction" | "Training";
-type Sort = "urgent" | "almost" | "recent" | "largest";
+type CardVariant = 'default' | 'featured' | 'tall' | 'wide';
 
 interface Need {
   id: string;
-  title: string;
+  href: string;
   image: string;
-  hospital: string;
-  country: string;
-  category: Category;
+  imageCaption: string;
+  urgent?: string;
+  location: string;
+  title: string;
   description: string;
-  raised: number;
-  goal: number;
-  daysLeft: number;
-  urgent?: boolean;
+  raised: string;
+  goal: string;
+  percent: number;
+  variant: CardVariant;
+  category: 'Equipment' | 'Construction' | 'Training';
 }
 
+// ── Data ───────────────────────────────────────────────────────────────────
 
 const NEEDS: Need[] = [
-  { id: "1", image: "https://images.unsplash.com/photo-1559757175-5700dde675bc?w=900&q=80&auto=format&fit=crop", title: "Cholera response, eastern DRC", hospital: "Vanga", country: "DRC", category: "Response", description: "Thirty days of rehydration supplies and surge staff. Forty patients a day, treated outdoors.", raised: 28400, goal: 46000, daysLeft: 12, urgent: true },
-  { id: "2", image: "https://images.unsplash.com/photo-1583912267550-d6c2ac3196c0?w=900&q=80&auto=format&fit=crop", title: "Solar power for the maternity ward", hospital: "Loma de Luz", country: "Honduras", category: "Construction", description: "A battery bank that holds the wards through monthly grid outages. Three to four a month.", raised: 71400, goal: 84000, daysLeft: 34 },
-  { id: "3", image: "https://images.unsplash.com/photo-1631815589968-fdb09a223b1e?w=900&q=80&auto=format&fit=crop", title: "Second floor for the maternity ward", hospital: "Galmi", country: "Niger", category: "Construction", description: "Eight new delivery rooms. Volume has tripled in five years.", raised: 186000, goal: 215000, daysLeft: 48 },
-  { id: "4", image: "https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=900&q=80&auto=format&fit=crop", title: "Cardiac cath lab, expanded", hospital: "Tenwek", country: "Kenya", category: "Equipment", description: "A hemodynamic monitoring upgrade, replacing a 2018 system at end of life.", raised: 48200, goal: 78000, daysLeft: 22 },
-  { id: "5", image: "https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?w=900&q=80&auto=format&fit=crop", title: "Ultrasound the OB ward can rely on", hospital: "Kapsowar", country: "Kenya", category: "Equipment", description: "Refurbished, two probes. The current unit is fourteen years old and failing.", raised: 13800, goal: 14200, daysLeft: 8 },
-  { id: "6", image: "https://images.unsplash.com/photo-1551601651-2a8555f1a136?w=900&q=80&auto=format&fit=crop", title: "NICU ventilator replacement", hospital: "CMC Vellore", country: "India", category: "Equipment", description: "One of three failed in February. The hospital is running on two; volume can't sustain that.", raised: 18400, goal: 34000, daysLeft: 9, urgent: true },
-  { id: "7", image: "https://images.unsplash.com/photo-1580281657527-47f249e8f4df?w=900&q=80&auto=format&fit=crop", title: "Pediatric anesthesia training, two years", hospital: "Tenwek", country: "Kenya", category: "Training", description: "A Kenyan attending returns as the only pediatric anesthesiologist in the region.", raised: 22800, goal: 30000, daysLeft: 60 },
-  { id: "8", image: "https://images.unsplash.com/photo-1538108149393-fbbd81895907?w=900&q=80&auto=format&fit=crop", title: "Two refurbished anesthesia machines", hospital: "Bongolo", country: "Gabon", category: "Equipment", description: "Replacing end-of-life Drager units in the main OR, with a one-year service contract.", raised: 31200, goal: 52000, daysLeft: 27 },
-  { id: "9", image: "https://images.unsplash.com/photo-1612531385446-f7e6d131e1d0?w=900&q=80&auto=format&fit=crop", title: "Three surgical residents, one year", hospital: "Tenwek", country: "Kenya", category: "Training", description: "Tuition and supervision for PAACS-accredited residents in their final year.", raised: 11400, goal: 18000, daysLeft: 41 },
-  { id: "10", image: "https://images.unsplash.com/photo-1605098293559-d6e0afaf21d4?w=900&q=80&auto=format&fit=crop", title: "Outpatient clinic expansion", hospital: "Hospital of Hope", country: "Togo", category: "Construction", description: "A 240-square-meter extension. Volume has doubled since 2020.", raised: 42000, goal: 124000, daysLeft: 72 },
-  { id: "11", image: "https://images.unsplash.com/photo-1613377859989-c4cce16dc8df?w=900&q=80&auto=format&fit=crop", title: "Visiting surgeon support, four teams", hospital: "Tansen", country: "Nepal", category: "Training", description: "A year of quarterly subspecialty teams — ortho, urology, plastics, ENT.", raised: 8200, goal: 24000, daysLeft: 55 },
-  { id: "12", image: "https://images.unsplash.com/photo-1582719471384-894fbb16e074?w=900&q=80&auto=format&fit=crop", title: "Working chemistry analyzer", hospital: "PCEA Chogoria", country: "Kenya", category: "Equipment", description: "Refurbished, eighteen months of reagent. Cuts sepsis turnaround from hours to minutes.", raised: 9800, goal: 22000, daysLeft: 18 },
+  {
+    id: '1',
+    href: '/project-page',
+    image: 'https://images.unsplash.com/photo-1559757175-5700dde675bc?w=1400&q=85&auto=format&fit=crop',
+    imageCaption: 'Vanga · Eastern DRC · Treatment tent, day 4',
+    urgent: 'Urgent · 12d left',
+    location: 'Vanga · DRC',
+    title: 'Cholera response, eastern DRC',
+    description: 'Thirty days of rehydration supplies and surge staff. Forty patients a day, treated outdoors.',
+    raised: '$28,400',
+    goal: '$46,000',
+    percent: 0.62,
+    variant: 'featured',
+    category: 'Equipment',
+  },
+  {
+    id: '2',
+    href: '/project-page',
+    image: 'https://images.unsplash.com/photo-1583912267550-d6c2ac3196c0?w=900&q=80&auto=format&fit=crop',
+    imageCaption: 'Loma de Luz · Honduras',
+    location: 'Loma de Luz · Honduras',
+    title: 'Solar power for the maternity ward',
+    description: 'A battery bank that holds the wards through monthly grid outages. Three to four a month.',
+    raised: '$71,400',
+    goal: '$84,000',
+    percent: 0.85,
+    variant: 'default',
+    category: 'Equipment',
+  },
+  {
+    id: '3',
+    href: '/project-page',
+    image: 'https://images.unsplash.com/photo-1631815589968-fdb09a223b1e?w=900&q=80&auto=format&fit=crop',
+    imageCaption: 'Galmi · Niger',
+    location: 'Galmi · Niger',
+    title: 'A second floor for the maternity ward',
+    description: 'Eight new delivery rooms. Volume has tripled in five years.',
+    raised: '$186,000',
+    goal: '$215,000',
+    percent: 0.87,
+    variant: 'tall',
+    category: 'Construction',
+  },
+  {
+    id: '4',
+    href: '/project-page',
+    image: 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=900&q=80&auto=format&fit=crop',
+    imageCaption: 'Tenwek · Kenya',
+    location: 'Tenwek · Kenya',
+    title: 'Cardiac cath lab, expanded',
+    description: 'A hemodynamic monitoring upgrade, replacing a 2018 system at end of life.',
+    raised: '$48,200',
+    goal: '$78,000',
+    percent: 0.62,
+    variant: 'default',
+    category: 'Equipment',
+  },
+  {
+    id: '5',
+    href: '/project-page',
+    image: 'https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?w=900&q=80&auto=format&fit=crop',
+    imageCaption: 'Kapsowar · Kenya',
+    location: 'Kapsowar · Kenya',
+    title: 'An ultrasound the OB ward can rely on',
+    description: 'Refurbished, two probes. The current unit is fourteen years old and failing.',
+    raised: '$13,800',
+    goal: '$14,200',
+    percent: 0.97,
+    variant: 'default',
+    category: 'Equipment',
+  },
+  {
+    id: '6',
+    href: '/project-page',
+    image: 'https://images.unsplash.com/photo-1551601651-2a8555f1a136?w=900&q=80&auto=format&fit=crop',
+    imageCaption: 'CMC Vellore · India',
+    urgent: 'Urgent',
+    location: 'CMC Vellore · India',
+    title: 'NICU ventilator replacement',
+    description: 'One of three failed in February. The hospital is running on two; volume can\'t sustain that.',
+    raised: '$18,400',
+    goal: '$34,000',
+    percent: 0.54,
+    variant: 'default',
+    category: 'Equipment',
+  },
+  {
+    id: '7',
+    href: '/project-page',
+    image: 'https://images.unsplash.com/photo-1580281657527-47f249e8f4df?w=900&q=80&auto=format&fit=crop',
+    imageCaption: 'Tenwek · Kenya',
+    location: 'Tenwek · Kenya',
+    title: 'Pediatric anesthesia training, two years',
+    description: 'A Kenyan attending returns as the only pediatric anesthesiologist in the region.',
+    raised: '$22,800',
+    goal: '$30,000',
+    percent: 0.76,
+    variant: 'wide',
+    category: 'Training',
+  },
+  {
+    id: '8',
+    href: '/project-page',
+    image: 'https://images.unsplash.com/photo-1538108149393-fbbd81895907?w=900&q=80&auto=format&fit=crop',
+    imageCaption: 'Bongolo · Gabon',
+    location: 'Bongolo · Gabon',
+    title: 'Two refurbished anesthesia machines',
+    description: 'Replacing end-of-life Drager units in the main OR, with a one-year service contract.',
+    raised: '$31,200',
+    goal: '$52,000',
+    percent: 0.60,
+    variant: 'default',
+    category: 'Equipment',
+  },
+  {
+    id: '9',
+    href: '/project-page',
+    image: 'https://images.unsplash.com/photo-1612531385446-f7e6d131e1d0?w=900&q=80&auto=format&fit=crop',
+    imageCaption: 'Tenwek · Kenya',
+    location: 'Tenwek · Kenya',
+    title: 'Three surgical residents, one year',
+    description: 'Tuition and supervision for PAACS-accredited residents in their final year.',
+    raised: '$11,400',
+    goal: '$18,000',
+    percent: 0.63,
+    variant: 'default',
+    category: 'Training',
+  },
+  {
+    id: '10',
+    href: '/project-page',
+    image: 'https://images.unsplash.com/photo-1605098293559-d6e0afaf21d4?w=900&q=80&auto=format&fit=crop',
+    imageCaption: 'Hospital of Hope · Togo',
+    location: 'Hospital of Hope · Togo',
+    title: 'Outpatient clinic expansion',
+    description: 'A 240-square-meter extension. Volume has doubled since 2020.',
+    raised: '$42,000',
+    goal: '$124,000',
+    percent: 0.34,
+    variant: 'default',
+    category: 'Construction',
+  },
+  {
+    id: '11',
+    href: '/project-page',
+    image: 'https://images.unsplash.com/photo-1613377859989-c4cce16dc8df?w=900&q=80&auto=format&fit=crop',
+    imageCaption: 'Tansen · Nepal',
+    location: 'Tansen · Nepal',
+    title: 'Visiting surgeon support, four teams',
+    description: 'A year of quarterly subspecialty teams — ortho, urology, plastics, ENT.',
+    raised: '$8,200',
+    goal: '$24,000',
+    percent: 0.34,
+    variant: 'default',
+    category: 'Training',
+  },
+  {
+    id: '12',
+    href: '/project-page',
+    image: 'https://images.unsplash.com/photo-1582719471384-894fbb16e074?w=900&q=80&auto=format&fit=crop',
+    imageCaption: 'PCEA Chogoria · Kenya',
+    location: 'PCEA Chogoria · Kenya',
+    title: 'A working chemistry analyzer',
+    description: 'Refurbished, eighteen months of reagent. Cuts sepsis turnaround from hours to minutes.',
+    raised: '$9,800',
+    goal: '$22,000',
+    percent: 0.45,
+    variant: 'default',
+    category: 'Equipment',
+  },
 ];
 
+const FILTERS = ['All', 'Urgent', 'Equipment', 'Construction', 'Training'] as const;
+type Filter = typeof FILTERS[number];
 
-const FILTERS: Filter[] = ["All", "Urgent", "Equipment", "Construction", "Training"];
+// ── useScrollReveal hook ────────────────────────────────────────────────────
 
-const fmt = (n: number) =>
-  n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(2)}M` : `$${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`;
-const fmtFull = (n: number) => `$${n.toLocaleString("en-US")}`;
+function useScrollReveal() {
+  const ref = useRef<HTMLElement>(null);
+  const [visible, setVisible] = useState(false);
 
-function MissionaryNeedsPage() {
-  const [filter, setFilter] = useState<Filter>("All");
-  const [sort, setSort] = useState<Sort>("urgent");
-  const [query, setQuery] = useState("");
-  const [menuOpen, setMenuOpen] = useState(false);
-
-  const filtered = useMemo(() => {
-    let list = NEEDS.filter((n) => {
-      if (filter === "All") return true;
-      if (filter === "Urgent") return n.urgent;
-      return n.category === filter;
-    });
-    if (query) {
-      const q = query.toLowerCase();
-      list = list.filter(
-        (n) =>
-          n.title.toLowerCase().includes(q) ||
-          n.hospital.toLowerCase().includes(q) ||
-          n.country.toLowerCase().includes(q),
-      );
-    }
-    const sorted = [...list];
-    sorted.sort((a, b) => {
-      if (sort === "urgent") return Number(b.urgent ?? 0) - Number(a.urgent ?? 0) || a.daysLeft - b.daysLeft;
-      if (sort === "almost") return b.raised / b.goal - a.raised / a.goal;
-      if (sort === "recent") return Number(a.id) - Number(b.id);
-      return b.goal - a.goal;
-    });
-    return sorted;
-  }, [filter, sort, query]);
-
-  const totals = useMemo(() => {
-    const raised = NEEDS.reduce((s, n) => s + n.raised, 0);
-    const goal = NEEDS.reduce((s, n) => s + n.goal, 0);
-    return { raised, goal, remaining: goal - raised, count: NEEDS.length, urgent: NEEDS.filter((n) => n.urgent).length };
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) setVisible(true); },
+      { threshold: 0.12 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
   }, []);
 
-  const heroPct = Math.round((totals.raised / totals.goal) * 100);
+  return { ref, visible };
+}
+
+// ── Sub-components ─────────────────────────────────────────────────────────
+
+function NeedCard({ need }: { need: Need }) {
+  const { ref, visible } = useScrollReveal();
+  const isUrgent = !!need.urgent;
+
+  const imageAspect: Record<CardVariant, string> = {
+    featured: 'aspect-[16/10]',
+    tall:     'aspect-[3/4]',
+    wide:     'aspect-[5/4]',
+    default:  'aspect-[4/3]',
+  };
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-     
-      <header className="sticky top-0 z-50 border-b border-border/80 bg-background/85 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6 lg:px-10">
-          <a href="/" className="flex items-center gap-2 font-semibold tracking-tight">
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary text-primary-foreground">
-              <Heart className="h-4 w-4" aria-hidden />
-            </span>
-            <span className="text-[15px]">MissionaryDoctors</span>
-          </a>
-          <nav className="hidden items-center gap-1 md:flex" aria-label="Primary">
-            {["About", "Hospitals", "Needs", "News"].map((l, i) => (
-              <a
-                key={l}
-                href="#"
-                className={`rounded-md px-3 py-2 text-sm transition-colors hover:bg-muted ${i === 2 ? "text-foreground font-medium" : "text-muted-foreground hover:text-foreground"}`}
-                aria-current={i === 2 ? "page" : undefined}
-              >
-                {l}
-              </a>
-            ))}
-          </nav>
-          <div className="flex items-center gap-2">
-            <a href="#" className="hidden rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:inline-flex">
-              Sign in
-            </a>
-            <a href="#needs" className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground shadow-xs transition-all hover:opacity-90 hover:shadow-sm">
-              Give now
-              <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-            </a>
-            <button
-              onClick={() => setMenuOpen(!menuOpen)}
-              aria-label="Open menu"
-              aria-expanded={menuOpen}
-              className="grid h-9 w-9 place-items-center rounded-md border border-border md:hidden"
-            >
-              <Menu className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-        {menuOpen && (
-          <nav className="border-t border-border bg-background px-6 py-3 md:hidden" aria-label="Mobile">
-            {["About", "Hospitals", "Needs", "News"].map((l) => (
-              <a key={l} href="#" className="block rounded-md px-3 py-2 text-sm text-foreground hover:bg-muted">
-                {l}
-              </a>
-            ))}
-          </nav>
+    <Link
+      href={need.href}
+      ref={ref as React.Ref<HTMLAnchorElement>}
+      className={[
+        'block group',
+        need.variant === 'featured' ? 'col-span-2 max-[600px]:col-span-1' : '',
+        'transition-[opacity,transform] duration-[600ms] ease-out',
+        visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-[14px]',
+      ].join(' ')}
+    >
+      {/* Image */}
+      <div
+        className={[
+          'relative overflow-hidden rounded-[10px] mb-[18px]',
+          '[background:#2a241c]',
+          imageAspect[need.variant],
+        ].join(' ')}
+        style={{ filter: 'saturate(0.88) contrast(1.05)' }}
+      >
+        <Image
+          src={need.image}
+          alt={need.imageCaption}
+          fill
+          sizes="(max-width: 600px) 100vw, (max-width: 980px) 50vw, 33vw"
+          className="object-cover transition-transform duration-[600ms] ease-[cubic-bezier(.2,.7,.2,1)] group-hover:scale-[1.015]"
+          style={{ filter: 'saturate(0.95) contrast(1.05)' }}
+        />
+        {/* Gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[rgba(20,16,10,0.35)] pointer-events-none" />
+
+        {need.urgent && (
+          <span className="absolute top-[14px] left-[14px] px-[12px] py-[6px] bg-[#FBF8F2] text-[#B14A2C] rounded-full font-mono text-[13px] tracking-[.12em] uppercase z-10">
+            {need.urgent}
+          </span>
         )}
-      </header>
-
-      <main id="main">
-     
-        <section className="relative overflow-hidden border-b border-border">
-          <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(60%_50%_at_50%_0%,oklch(0.51_0.16_252_/_0.06),transparent_70%)]" />
-          <div className="mx-auto max-w-7xl px-6 py-16 lg:px-10 lg:py-24">
-            <div className="grid items-start gap-12 lg:grid-cols-[1.15fr_1fr] lg:gap-16">
-              <div>
-                <div className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium text-muted-foreground">
-                  <span className="relative flex h-1.5 w-1.5">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
-                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-success" />
-                  </span>
-                  <span>{totals.urgent} urgent needs · live funding</span>
-                </div>
-                <h1 className="mt-6 text-4xl font-semibold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
-                  Real medical needs.
-                  <br />
-                  <span className="text-primary">Transparently funded.</span>
-                </h1>
-                <p className="mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground">
-                  Each hospital writes the project. We vet it. You fund a specific line item — equipment, construction, or training. Reports arrive at every milestone.
-                </p>
-                <div className="mt-8 flex flex-wrap items-center gap-3">
-                  <a href="#needs" className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-3 text-sm font-medium text-primary-foreground shadow-sm transition-all hover:shadow-md hover:-translate-y-px">
-                    Browse open needs
-                    <ArrowRight className="h-4 w-4" aria-hidden />
-                  </a>
-                  <a href="#" className="inline-flex items-center gap-2 rounded-md border border-border bg-surface px-5 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted">
-                    How it works
-                  </a>
-                </div>
-                <ul className="mt-10 grid grid-cols-1 gap-3 sm:grid-cols-3" aria-label="Trust">
-                  {[
-                    { icon: Shield, label: "501(c)(3) verified" },
-                    { icon: CheckCircle2, label: "100% to project" },
-                    { icon: Activity, label: "Milestone reports" },
-                  ].map(({ icon: Icon, label }) => (
-                    <li key={label} className="flex items-center gap-2.5 text-sm text-muted-foreground">
-                      <Icon className="h-4 w-4 text-primary" aria-hidden />
-                      <span>{label}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <aside className="rounded-2xl border border-border bg-surface p-6 shadow-sm lg:p-7" aria-label="Live funding overview">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Global funding overview</p>
-                    <p className="mt-1 text-sm text-muted-foreground">Across {totals.count} active projects</p>
-                  </div>
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-success/10 px-2.5 py-1 text-xs font-medium text-success">
-                    <TrendingUp className="h-3 w-3" /> Live
-                  </span>
-                </div>
-
-                <div className="mt-6">
-                  <div className="flex items-baseline justify-between">
-                    <span className="font-mono text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">{fmt(totals.raised)}</span>
-                    <span className="text-sm text-muted-foreground">of {fmt(totals.goal)} goal</span>
-                  </div>
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
-                    <div
-                      className="h-full rounded-full bg-primary transition-all duration-700"
-                      style={{ width: `${heroPct}%` }}
-                      role="progressbar"
-                      aria-valuenow={heroPct}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                    />
-                  </div>
-                  <div className="mt-2 flex justify-between text-xs text-muted-foreground">
-                    <span>{heroPct}% funded</span>
-                    <span>{fmt(totals.remaining)} remaining</span>
-                  </div>
-                </div>
-
-                <div className="mt-6 grid grid-cols-3 divide-x divide-border rounded-xl border border-border bg-background">
-                  {[
-                    { label: "Hospitals", value: "42" },
-                    { label: "Countries", value: "18" },
-                    { label: "Donors", value: "3.2k" },
-                  ].map((s) => (
-                    <div key={s.label} className="px-4 py-3 text-center">
-                      <p className="font-mono text-xl font-semibold text-foreground">{s.value}</p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">{s.label}</p>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-6 space-y-3 border-t border-border pt-5">
-                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Recently funded</p>
-                  {[
-                    { who: "Anonymous", what: "Cholera response", amt: "$250" },
-                    { who: "Marcus L.", what: "NICU ventilator", amt: "$1,000" },
-                    { who: "Grace Foundation", what: "Solar maternity", amt: "$5,400" },
-                  ].map((row) => (
-                    <div key={row.what} className="flex items-center justify-between text-sm">
-                      <div className="min-w-0">
-                        <p className="truncate text-foreground">{row.who}</p>
-                        <p className="truncate text-xs text-muted-foreground">{row.what}</p>
-                      </div>
-                      <span className="font-mono text-sm font-medium text-foreground">{row.amt}</span>
-                    </div>
-                  ))}
-                </div>
-              </aside>
-            </div>
-          </div>
-        </section>
-
-      
-        <div id="needs" className="sticky top-16 z-40 border-y border-border bg-background/85 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70">
-          <div className="mx-auto flex max-w-7xl flex-col gap-3 px-6 py-3 lg:flex-row lg:items-center lg:px-10">
-            <div className="flex flex-1 items-center gap-2 overflow-x-auto">
-              <div role="tablist" aria-label="Filter needs" className="flex items-center gap-1">
-                {FILTERS.map((f) => {
-                  const active = f === filter;
-                  return (
-                    <button
-                      key={f}
-                      role="tab"
-                      aria-selected={active}
-                      onClick={() => setFilter(f)}
-                      className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                        active ? "bg-foreground text-background" : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {f}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <label className="relative flex items-center">
-                <Search className="pointer-events-none absolute left-3 h-4 w-4 text-muted-foreground" aria-hidden />
-                <span className="sr-only">Search needs</span>
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search hospital or country"
-                  className="h-9 w-full rounded-md border border-border bg-surface pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/20 sm:w-64"
-                />
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <span className="sr-only">Sort by</span>
-                <select
-                  value={sort}
-                  onChange={(e) => setSort(e.target.value as Sort)}
-                  className="h-9 rounded-md border border-border bg-surface px-3 text-sm focus:border-ring focus:ring-2 focus:ring-ring/20"
-                >
-                  <option value="urgent">Most urgent</option>
-                  <option value="almost">Almost funded</option>
-                  <option value="recent">Recently listed</option>
-                  <option value="largest">Largest goal</option>
-                </select>
-              </label>
-            </div>
-          </div>
-          <div className="mx-auto max-w-7xl px-6 pb-3 text-xs text-muted-foreground lg:px-10">
-            Showing <span className="font-medium text-foreground">{filtered.length}</span> of {totals.count} needs
-          </div>
+        <div className="absolute left-[14px] bottom-[12px] right-[14px] text-[#FBF8F2] font-mono text-[11.5px] tracking-[.12em] uppercase opacity-90 z-10">
+          {need.imageCaption}
         </div>
+      </div>
 
-       
-        <section className="mx-auto max-w-7xl px-6 py-12 lg:px-10 lg:py-16">
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {filtered.map((need) => {
-              const pct = Math.min(100, Math.round((need.raised / need.goal) * 100));
-              const urgent = need.urgent || need.daysLeft <= 10;
-              const almost = pct >= 90;
-              return (
-                <article
-                  key={need.id}
-                  className="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
-                >
-                <div className="relative aspect-[16/10] overflow-hidden bg-muted">
-  <img
-    src={need.image}
-    alt={need.title}
-    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-  />
-                    <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
-                      {urgent && (
-                        <span className="inline-flex items-center gap-1 rounded-md bg-destructive/95 px-2 py-1 text-[11px] font-medium text-destructive-foreground shadow-sm backdrop-blur">
-                          <Clock className="h-3 w-3" aria-hidden /> Urgent
-                        </span>
-                      )}
-                      {almost && (
-                        <span className="inline-flex items-center gap-1 rounded-md bg-success/95 px-2 py-1 text-[11px] font-medium text-success-foreground shadow-sm backdrop-blur">
-                          Almost funded
-                        </span>
-                      )}
-                      <span className="inline-flex items-center rounded-md bg-background/90 px-2 py-1 text-[11px] font-medium text-foreground shadow-sm backdrop-blur">
-                        {need.category}
-                      </span>
-                    </div>
-                  </div>
+      {/* Text */}
+      <div className="font-mono text-[13px] tracking-[.1em] uppercase text-[#7A7468] mb-[10px]">
+        {need.location}
+      </div>
+      <h3
+        className={[
+          "font-['Fraunces'] font-normal leading-[1.18] tracking-[-0.01em] text-[#1F1B14] mb-[10px]",
+          need.variant === 'featured' ? 'text-[34px] max-w-[22ch]' : 'text-[25px]',
+        ].join(' ')}
+      >
+        {need.title}
+      </h3>
+      <p
+        className={[
+          'leading-[1.55] text-[#43392E] mb-[22px]',
+          need.variant === 'featured' ? 'text-[17.5px] max-w-[54ch]' : 'text-[16.5px]',
+        ].join(' ')}
+      >
+        {need.description}
+      </p>
 
-                  <div className="flex flex-1 flex-col p-5">
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <Building2 className="h-3.5 w-3.5" aria-hidden />
-                      <span className="font-medium text-foreground">{need.hospital}</span>
-                      <span aria-hidden>·</span>
-                      <span>{need.country}</span>
-                    </div>
-                    <h3 className="mt-2 text-base font-semibold leading-snug tracking-tight text-foreground">
-                      <a href="#" className="after:absolute after:inset-0 after:content-['']">
-                        {need.title}
-                      </a>
-                    </h3>
-                    <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted-foreground">{need.description}</p>
+      {/* Progress */}
+      <div className="flex justify-between items-baseline text-[14.5px] text-[#43392E] mb-[8px]">
+        <span>
+          <strong className="font-medium text-[#1F1B14]">{need.raised}</strong> of {need.goal}
+        </span>
+        <span className={`font-mono text-[13px] ${isUrgent ? 'text-[#B14A2C]' : 'text-[#3F5E48]'}`}>
+          {Math.round(need.percent * 100)}%
+        </span>
+      </div>
+      <div className="h-[3px] bg-[#D8CFBE] rounded-full overflow-hidden">
+        <div
+          className={`h-full rounded-full origin-left ${isUrgent ? 'bg-[#B14A2C]' : 'bg-[#3F5E48]'}`}
+          style={{ transform: `scaleX(${need.percent})` }}
+        />
+      </div>
+    </Link>
+  );
+}
 
-                    <div className="mt-5">
-                      <div className="flex items-baseline justify-between text-sm">
-                        <span className="font-mono font-semibold text-foreground">{fmtFull(need.raised)}</span>
-                        <span className="font-mono text-xs text-muted-foreground">of {fmtFull(need.goal)}</span>
-                      </div>
-                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
-                        <div
-                          className={`h-full rounded-full transition-all duration-500 ${urgent ? "bg-destructive" : almost ? "bg-success" : "bg-primary"}`}
-                          style={{ width: `${pct}%` }}
-                          role="progressbar"
-                          aria-valuenow={pct}
-                          aria-valuemin={0}
-                          aria-valuemax={100}
-                          aria-label={`${pct}% funded`}
-                        />
-                      </div>
-                    </div>
+function Interstitial() {
+  const { ref, visible } = useScrollReveal();
 
-                    <div className="mt-4 flex items-center justify-between border-t border-border pt-4 text-xs">
-                      <div className="flex items-center gap-3">
-                        <span className={`font-mono font-medium ${urgent ? "text-destructive" : "text-foreground"}`}>
-                          {pct}% funded
-                        </span>
-                        <span className="text-muted-foreground">
-                          <Clock className="mr-1 inline h-3 w-3" aria-hidden />
-                          {need.daysLeft}d left
-                        </span>
-                      </div>
-                      <span className="relative z-10 inline-flex items-center gap-1 text-xs font-medium text-primary opacity-0 transition-opacity group-hover:opacity-100">
-                        Fund this <ArrowRight className="h-3 w-3" />
-                      </span>
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-          {filtered.length === 0 && (
-            <div className="rounded-xl border border-border bg-surface px-6 py-16 text-center">
-              <p className="text-muted-foreground">No needs match your filters.</p>
-            </div>
-          )}
-        </section>
-
-    
-        <section className="border-t border-border bg-surface">
-          <div className="mx-auto max-w-7xl px-6 py-16 lg:px-10 lg:py-20">
-            <div className="grid items-center gap-8 lg:grid-cols-[1.5fr_1fr]">
-              <div>
-                <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-                  Fund a need monthly. See it through to delivery.
-                </h2>
-                <p className="mt-3 max-w-xl text-base text-muted-foreground">
-                  Recurring giving lets us greenlight smaller projects faster — and ensures supplies arrive before they're critical.
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-3 lg:justify-end">
-                <a href="#" className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-3 text-sm font-medium text-primary-foreground shadow-sm transition-all hover:shadow-md hover:-translate-y-px">
-                  Give monthly <ArrowRight className="h-4 w-4" />
-                </a>
-                <a href="#" className="inline-flex items-center rounded-md border border-border bg-background px-5 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted">
-                  Talk to our team
-                </a>
-              </div>
-            </div>
-          </div>
-        </section>
-      </main>
-
-      
-      <footer className="border-t border-border bg-background">
-        <div className="mx-auto max-w-7xl px-6 py-16 lg:px-10">
-          <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr]">
-            <div>
-              <div className="flex items-center gap-2 font-semibold tracking-tight">
-                <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary text-primary-foreground">
-                  <Heart className="h-4 w-4" aria-hidden />
-                </span>
-                MissionaryDoctors
-              </div>
-              <p className="mt-4 max-w-sm text-sm leading-relaxed text-muted-foreground">
-                A transparent funding platform for medical mission hospitals worldwide.
-              </p>
-            </div>
-            {[
-              { h: "Discover", l: ["Hospital tours", "Missionary needs", "News & field reports", "About"] },
-              { h: "Take part", l: ["Apply to serve", "Give monthly", "For hospitals", "Newsletter"] },
-              { h: "Trust", l: ["Financials", "501(c)(3) status", "Privacy", "Contact"] },
-            ].map((c) => (
-              <div key={c.h}>
-                <h5 className="text-xs font-semibold uppercase tracking-wider text-foreground">{c.h}</h5>
-                <ul className="mt-4 space-y-2.5">
-                  {c.l.map((item) => (
-                    <li key={item}>
-                      <a href="#" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
-                        {item}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-          <div className="mt-12 flex flex-col items-start justify-between gap-3 border-t border-border pt-6 text-xs text-muted-foreground sm:flex-row sm:items-center">
-            <p>© 2026 Giving Tree Projects · Shreveport, Louisiana</p>
-            <p>501(c)(3) · EIN 00-0000000</p>
-          </div>
+  return (
+    <div
+      ref={ref as React.Ref<HTMLDivElement>}
+      className={[
+        'col-span-full my-[24px_0_8px] grid gap-[32px] items-end',
+        'grid-cols-[1.4fr_1fr] max-[780px]:grid-cols-1',
+        'transition-[opacity,transform] duration-[600ms] ease-out',
+        visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-[14px]',
+      ].join(' ')}
+    >
+      {/* Wide photo */}
+      <div
+        className="relative aspect-[21/9] rounded-[10px] overflow-hidden"
+        style={{ background: '#241e16', filter: 'saturate(0.9) contrast(1.05)' }}
+      >
+        <Image
+          src="https://images.unsplash.com/photo-1551601651-2a8555f1a136?w=1400&q=85&auto=format&fit=crop"
+          alt="Galmi Hospital, second shift"
+          fill
+          sizes="(max-width: 780px) 100vw, 58vw"
+          className="object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[rgba(20,16,10,0.4)] pointer-events-none" />
+        <div className="absolute left-[14px] bottom-[12px] right-[14px] text-[#FBF8F2] font-mono text-[12px] tracking-[.12em] uppercase opacity-90 z-10">
+          Galmi · Niger · 04:12, second shift
         </div>
-      </footer>
+      </div>
+
+      {/* Quote */}
+      <div className="pb-[10px]">
+        <p className="font-['Fraunces'] font-light italic text-[26px] leading-[1.35] text-[#1F1B14] max-w-[28ch]">
+          &ldquo;Volume tripled in five years. We deliver in the corridor when the rooms are full.&rdquo;
+        </p>
+        <small className="block mt-[14px] font-mono text-[12px] tracking-[.12em] uppercase text-[#7A7468]">
+          Dr. Hama, Galmi Hospital
+        </small>
+      </div>
     </div>
   );
 }
-export default MissionaryNeedsPage;
+
+// ── Main Page ──────────────────────────────────────────────────────────────
+
+export default function MissionaryNeedsPage() {
+  const [activeFilter, setActiveFilter] = useState<Filter>('All');
+
+  const filtered = NEEDS.filter((n) => {
+    if (activeFilter === 'All') return true;
+    if (activeFilter === 'Urgent') return !!n.urgent;
+    return n.category === activeFilter;
+  });
+
+  // Split at index 5 to insert interstitial between card 5 and 6
+  const before = filtered.slice(0, 5);
+  const after  = filtered.slice(5);
+
+  return (
+    <>
+      {/* ── Fonts (add to your next/font or global CSS instead) ── */}
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,300..900,30..100&family=Geist:wght@300..600&family=JetBrains+Mono:wght@400&display=swap');
+        :root {
+          --paper:#F4EFE6;--bone:#FBF8F2;--ink:#1F1B14;--ink-2:#43392E;--mute:#7A7468;
+          --hair:#D8CFBE;--terra:#B14A2C;--moss:#3F5E48;
+        }
+        html { scroll-behavior: smooth; }
+        body { background: var(--paper); }
+        .hero-image-parallax { background-attachment: fixed; }
+        @media (max-width: 900px) { .hero-image-parallax { background-attachment: scroll; } }
+      `}</style>
+
+      <div className="font-['Geist',system-ui,sans-serif] text-[18px] leading-[1.7] text-[#1F1B14] bg-[#F4EFE6] antialiased">
+
+        {/* ── Header ── */}
+        <header className="px-[clamp(24px,5vw,80px)] py-[28px] flex items-center justify-between max-w-[1240px] mx-auto">
+          <Link href="/" className="font-['Fraunces'] font-normal text-[24px] tracking-[-0.01em] leading-none">
+            MissionaryDoctors
+          </Link>
+          <nav className="flex gap-[36px] items-center">
+            <Link href="#" className="hidden sm:block text-[15.5px] text-[#43392E] hover:text-[#1F1B14] transition-colors">About</Link>
+            <Link href="/hospitals-page" className="hidden sm:block text-[15.5px] text-[#43392E] hover:text-[#1F1B14] transition-colors">Hospital Tours</Link>
+            <Link href="#" className="hidden sm:block text-[15.5px] text-[#1F1B14] transition-colors">Missionary Needs</Link>
+            <Link href="#" className="hidden sm:block text-[15.5px] text-[#43392E] hover:text-[#1F1B14] transition-colors">News</Link>
+            <Link href="#" className="px-[22px] py-[11px] bg-[#1F1B14] text-[#FBF8F2] rounded-full text-[14.5px] font-medium hover:bg-[#B14A2C] transition-colors">
+              Give
+            </Link>
+          </nav>
+        </header>
+
+        {/* ── Hero — split layout ── */}
+        <section className="border-b border-[#D8CFBE]">
+          <div className="grid grid-cols-[1.05fr_1fr] max-[900px]:grid-cols-1 min-h-[min(78vh,720px)] max-[900px]:min-h-0">
+
+            {/* Copy */}
+            <div className="flex flex-col justify-center px-[clamp(24px,5vw,80px)] py-[96px] max-[900px]:py-[56px] max-w-[720px] ml-auto">
+              <div className="font-mono text-[13px] tracking-[.18em] uppercase text-[#7A7468] mb-[24px]">
+                Missionary Needs · Updated weekly
+              </div>
+              <h1 className="font-['Fraunces'] font-light text-[clamp(40px,5.5vw,80px)] leading-[1.05] tracking-[-0.03em] max-w-[18ch]">
+                Real needs. Real hospitals.{' '}
+                <em className="italic text-[#B14A2C]">You see it through.</em>
+              </h1>
+              <p className="mt-[28px] text-[20px] leading-[1.55] text-[#43392E] max-w-[50ch]">
+                Each hospital writes the project. We vet it. You fund a specific line item. Reports come at every milestone.
+              </p>
+              <div className="mt-[28px] flex flex-wrap font-mono text-[13px] tracking-[.12em] uppercase text-[#43392E] max-[680px]:flex-col max-[680px]:gap-[8px]">
+                {['Tax-deductible 501(c)(3)', '100% to the project', 'Reports at every milestone'].map((t, i, arr) => (
+                  <span
+                    key={t}
+                    className={i < arr.length - 1 ? 'pr-[18px] mr-[18px] border-r border-[#D8CFBE]' : ''}
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
+              <div className="mt-[44px] pt-[28px] border-t border-[#D8CFBE] grid grid-cols-3 max-[680px]:grid-cols-1 max-[680px]:gap-[20px]">
+                {[
+                  { value: '15',    label: 'Active needs' },
+                  { value: '$982k', label: 'Raised so far' },
+                  { value: '$1.84M',label: 'Still to raise' },
+                ].map(({ value, label }, i) => (
+                  <div
+                    key={label}
+                    className={[
+                      i < 2 ? 'pr-[32px] border-r border-[#D8CFBE] max-[680px]:border-r-0 max-[680px]:border-b max-[680px]:pb-[20px]' : '',
+                      i > 0 ? 'pl-[32px] max-[680px]:pl-0' : '',
+                    ].join(' ')}
+                  >
+                    <strong className="block font-['Fraunces'] font-normal italic text-[38px] text-[#1F1B14] mb-[8px] tracking-[-0.02em] leading-none">
+                      {value}
+                    </strong>
+                    <span className="font-mono text-[13px] tracking-[.1em] uppercase text-[#7A7468]">{label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Hero photo */}
+            <div
+              className="relative bg-[#241e16] max-[900px]:aspect-[4/3] max-[900px]:order-first hero-image-parallax"
+              role="img"
+              aria-label="Surgeon scrubbing in at Tenwek Hospital, before dawn."
+            >
+              <Image
+                src="https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=1400&q=85&auto=format&fit=crop"
+                alt="Surgeon scrubbing in at Tenwek Hospital, before dawn"
+                fill
+                priority
+                sizes="(max-width: 900px) 100vw, 50vw"
+                className="object-cover"
+                style={{ filter: 'saturate(0.92) contrast(1.04)' }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-b from-transparent from-[55%] to-[rgba(20,16,10,0.55)] pointer-events-none" />
+              <div className="absolute left-[28px] right-[28px] bottom-[24px] flex justify-between gap-[16px] text-[#FBF8F2] font-mono text-[12px] tracking-[.14em] uppercase opacity-85 z-10">
+                <span>Tenwek Hospital · Bomet, Kenya</span>
+                <span>05:42</span>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+        {/* ── Filters ── */}
+        <div className="py-[18px] border-b border-[#D8CFBE] sticky top-0 bg-[#F4EFE6] z-30">
+          <div className="max-w-[1240px] mx-auto px-[clamp(24px,5vw,80px)] flex items-center gap-[20px] flex-wrap">
+            <div className="flex gap-[8px] flex-wrap">
+              {FILTERS.map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setActiveFilter(f)}
+                  className={[
+                    'px-[18px] py-[9px] text-[14.5px] rounded-full transition-all',
+                    activeFilter === f
+                      ? 'bg-[#1F1B14] text-[#FBF8F2]'
+                      : 'text-[#43392E] hover:text-[#1F1B14]',
+                  ].join(' ')}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+            <div className="ml-auto flex items-center gap-[10px] text-[14.5px] text-[#7A7468]">
+              <span>Sort</span>
+              <select className="px-[12px] py-[8px] pr-[28px] border border-[#D8CFBE] rounded-[6px] bg-[#FBF8F2] text-[14.5px] text-[#1F1B14] cursor-pointer appearance-none">
+                <option>Most urgent</option>
+                <option>Almost funded</option>
+                <option>Recently listed</option>
+                <option>Largest goal</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Grid ── */}
+        <section className="max-w-[1240px] mx-auto px-[clamp(24px,5vw,80px)] py-[56px_0_80px]">
+          <div
+            className="grid gap-x-[32px] gap-y-[44px]"
+            style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}
+          >
+            {/* Responsive column override via CSS */}
+            <style>{`
+              @media (max-width: 980px) { .needs-grid { grid-template-columns: repeat(2,1fr) !important; } }
+              @media (max-width: 600px) { .needs-grid { grid-template-columns: 1fr !important; gap: 44px 0 !important; } }
+            `}</style>
+
+            <div className="col-span-full text-[14.5px] text-[#7A7468] -mb-[14px]">
+              Showing {filtered.length} of {NEEDS.length} needs
+            </div>
+
+            {/* Cards before interstitial */}
+            {before.map((need) => (
+              <NeedCard key={need.id} need={need} />
+            ))}
+
+            {/* Interstitial — only shown when showing enough cards */}
+            {filtered.length > 5 && <Interstitial />}
+
+            {/* Cards after interstitial */}
+            {after.map((need) => (
+              <NeedCard key={need.id} need={need} />
+            ))}
+          </div>
+        </section>
+
+        {/* ── Footer ── */}
+        <footer className="pt-[72px] pb-[40px] border-t border-[#D8CFBE]">
+          <div className="max-w-[1240px] mx-auto px-[clamp(24px,5vw,80px)]">
+            <div className="grid grid-cols-[2fr_1fr_1fr_1fr] max-[780px]:grid-cols-2 max-[480px]:grid-cols-1 gap-[48px] max-[780px]:gap-[32px] pb-[56px]">
+              <div>
+                <div className="font-['Fraunces'] font-normal text-[24px] tracking-[-0.01em] mb-[16px]">MissionaryDoctors</div>
+                <p className="font-['Fraunces'] font-light italic text-[24px] text-[#1F1B14] leading-[1.3] max-w-[24ch]">
+                  A catalog of medical mission hospitals worldwide.
+                </p>
+              </div>
+              {[
+                {
+                  heading: 'Discover',
+                  links: [
+                    { label: 'Hospital tours', href: '/hospitals-page' },
+                    { label: 'Missionary needs', href: '#' },
+                    { label: 'News & field reports', href: '#' },
+                    { label: 'About', href: '#' },
+                  ],
+                },
+                {
+                  heading: 'Take part',
+                  links: [
+                    { label: 'Apply to serve', href: '#' },
+                    { label: 'Give monthly', href: '#' },
+                    { label: 'For hospitals', href: '#' },
+                    { label: 'Newsletter', href: '#' },
+                  ],
+                },
+                {
+                  heading: 'Trust',
+                  links: [
+                    { label: 'Financials', href: '#' },
+                    { label: '501(c)(3) status', href: '#' },
+                    { label: 'Privacy', href: '#' },
+                    { label: 'Contact', href: '#' },
+                  ],
+                },
+              ].map(({ heading, links }) => (
+                <div key={heading}>
+                  <h5 className="font-mono text-[13px] tracking-[.14em] uppercase text-[#7A7468] mb-[18px] font-normal">
+                    {heading}
+                  </h5>
+                  {links.map(({ label, href }) => (
+                    <Link key={label} href={href} className="block py-[6px] text-[15.5px] text-[#43392E] hover:text-[#1F1B14]">
+                      {label}
+                    </Link>
+                  ))}
+                </div>
+              ))}
+            </div>
+            <div className="pt-[28px] border-t border-[#D8CFBE] flex justify-between items-center text-[13.5px] text-[#7A7468]">
+              <div>© 2026 Giving Tree Projects · Shreveport, Louisiana</div>
+              <div>Powered by Giving Tree Projects</div>
+            </div>
+          </div>
+        </footer>
+
+      </div>
+    </>
+  );
+}
